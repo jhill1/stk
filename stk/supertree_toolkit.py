@@ -466,7 +466,7 @@ def get_all_taxa(XML, pretty=False):
 
     return taxa_list
 
-def create_matrix(XML,format="hennig"):
+def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
 
     # get all trees
     trees = obtain_trees(XML)
@@ -484,6 +484,14 @@ def create_matrix(XML,format="hennig"):
     charsets = []
     names = []
     current_char = 1
+    # Only partitioning via trees is currently possible
+    if partitioning:
+        if not partition_on == "trees":
+            raise MatrixError("Invalid partitioing type")
+        # can only do this for TNT
+        if not format == "hennig":
+            raise MatrixError("Can only use partitioning with hennig format")
+
     for key in trees:
         names.append(key)
         handle = StringIO(trees[key])
@@ -518,18 +526,35 @@ def create_matrix(XML,format="hennig"):
     if (format == 'hennig'):
         matrix_string = "xread\n"
         matrix_string += str(len(taxa)) + " "+str(current_char-1)+"\n"
-        matrix_string += "\tformat missing = ?"
-        matrix_string += ";\n"
-        matrix_string += "\n\tmatrix\n\n";
+        if not partitioning:
+            matrix_string += "\tformat missing = ?"
+            matrix_string += ";\n"
+            matrix_string += "\n\tmatrix\n\n";
 
         i = 0
-        for taxon in taxa:
-            matrix_string += taxon + "\t"
-            string = ""
-            for t in matrix[i][:]:
-                string += t
-            matrix_string += string + "\n"
-            i += 1
+        if partitioning:
+            for char in charsets:
+                matrix_string += "&[num]\n"
+                # split characterset into integers
+                start_c, end_c = str.split(char,'-')
+                start_c = int(start_c) - 1
+                end_c = int(end_c)
+                i = 0
+                for taxon in taxa:
+                    matrix_string += taxon + "\t"
+                    string = ""
+                    for t in matrix[i][start_c:end_c]:
+                        string += t
+                    matrix_string += string + "\n"
+                    i += 1           
+        else:
+            for taxon in taxa:
+                matrix_string += taxon + "\t"
+                string = ""
+                for t in matrix[i][:]:
+                    string += t
+                matrix_string += string + "\n"
+                i += 1
             
         matrix_string += "\t;\n"
         matrix_string += "procedure /;"
