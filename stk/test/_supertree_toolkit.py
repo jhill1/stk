@@ -2,7 +2,7 @@ import unittest
 import math
 import sys
 sys.path.append("../")
-from supertree_toolkit import _check_uniqueness, _parse_subs_file, _check_taxa, _check_data
+from supertree_toolkit import _check_uniqueness, _parse_subs_file, _check_taxa, _check_data, _get_source_element_from_tree_name
 import os
 from lxml import etree
 from util import *
@@ -129,6 +129,14 @@ class TestSetSourceNames(unittest.TestCase):
             return
         self.assert_(True)
 
+    def test_get_source_element_from_tree_name(self):
+        """Test the function that gets the source_tree element
+        from a tree name only"""
+        
+        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
+        source_tree = _get_source_element_from_tree_name(XML,"Hill_2011_1")
+        tree = source_tree.xpath("tree_data/string_value")[0].text
+        self.assert_(tree == "((A:1.00000,B:1.00000)0.00000:0.00000,(F:1.00000,E:1.00000)0.00000:0.00000)0.00000:0.00000;")
   
 if __name__ == '__main__':
     unittest.main()

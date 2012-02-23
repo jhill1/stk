@@ -433,6 +433,7 @@ def obtain_trees(XML):
 
     return trees
 
+
 def get_all_taxa(XML, pretty=False):
     """ Produce a taxa list by scanning all trees within 
     a PHYML file. 
@@ -470,7 +471,6 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
 
     # get all trees
     trees = obtain_trees(XML)
-
     # and the taxa
     taxa = []
     taxa.append("MRPOutgroup")
@@ -484,22 +484,65 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     charsets = []
     names = []
     current_char = 1
-    # Only partitioning via trees is currently possible
-    if partitioning:
-        if not partition_on == "trees":
-            raise MatrixError("Invalid partitioing type")
-        # can only do this for TNT
+
+    # need to check parition_on here, I think
+
+    # we need to loop over in the right order for the partitioning. How?
+    # For the tree-based, we need the charsets
+    
+    # if we're partitioning on meta data (i.e. we need to grab some info from
+    # the XML, then the trees need to be interated over in a certain order,
+    # depending on the split.
+    if (partitioning):
         if not format == "hennig":
             raise MatrixError("Can only use partitioning with hennig format")
+            
+    if (partitioning and partition_on == 'char_types'):
+        mol_names = []
+        morph_names = []
+        for name in trees:  
+            # get the source element for this tree
+            source = _get_source_element_from_tree_name(XML, name)
+            characters = source.xpath('character_data/character')
+            types = []
+            nTypes = 0
+            for c in characters:
+                types.append(c.attrib['type'])
+            # we now have an array of all types in this source tree
+            # check what they are - for now they have to be the same
+            # and of certain type
+            all_equal = True
+            for t in types:
+                if (not t == types[0]):
+                    all_equal = False
+            if (all_equal):
+                # ok, so they're all the same
+                if (types[0] == "molecular"):
+                    mol_names.append(name)
+                elif (types[0] == 'morphological'):
+                    morph_names.append(name)
+        names.extend(mol_names)
+        names.extend(morph_names)
+        # boundary is the last molecular name
+        p_boundary = mol_names[-1]
+    # Partitioning over trees, requires no order
+    # Not partitioining requires no specific order too
+    # so these get lumped together here
+    else:
+        names = trees.keys()
 
-    for key in trees:
-        names.append(key)
-        handle = StringIO(trees[key])
+    print p_boundary
+    partition_boundaries = []
+    partition_boundary_count = 0
+    prev_part_boundary = 1
+    for name in names:
+        handle = StringIO(trees[name])
         newick_trees = list(Phylo.parse(handle, "newick"))
         newick_tree = newick_trees[0]
         submatrix, tree_taxa = _assemble_tree_matrix(newick_tree)
         nChars = len(submatrix[0,:])
         # loop over characters in the submatrix
+
         for i in range(1,nChars):
             # loop over taxa. Add '?' for an "unknown" taxa, otherwise
             # get 0 or 1 from submatrix. May as well turn into a string whilst
@@ -518,11 +561,23 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
                     current_row.append('?')
             matrix.append(current_row)
         charsets.append(str(current_char) + "-" + str(current_char + nChars-2))
+        # special case of partitioning: on trees
+        if (partitioning and partition_on == "trees"):
+            partition_boundaries.append([current_char,current_char+nChars-2])
+        elif (partitioning and partition_on == "char_types"):
+            if (name == p_boundary):
+                partition_boundaries.append([current_char,current_char+nChars-2])
+                prev_part_boundary = current_char+nChars-1
         current_char += nChars-1
 
+        
+    # add last partition
+    if (partitioning and partition_on == 'char_types'):
+        partition_boundaries.append([prev_part_boundary,current_char-1])
+
+    print partition_boundaries
     matrix = numpy.array(matrix)
     matrix = matrix.transpose()
-
     if (format == 'hennig'):
         matrix_string = "xread\n"
         matrix_string += str(len(taxa)) + " "+str(current_char-1)+"\n"
@@ -533,20 +588,26 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
 
         i = 0
         if partitioning:
-            for char in charsets:
+            n_part = 0
+            for p in partition_boundaries:
                 matrix_string += "&[num]\n"
-                # split characterset into integers
-                start_c, end_c = str.split(char,'-')
-                start_c = int(start_c) - 1
-                end_c = int(end_c)
+                if (partition_on == "char_types"):
+                    if (n_part == 0):
+                        matrix_string += "//Molecular data\n"
+                    elif(n_part == 1):
+                        matrix_string += "//Morphological data\n"
+                    else:
+                        print "Help: more than two partitions even though we're partitioning on Morph/Mol"
+                        sys.exit(-1)
                 i = 0
                 for taxon in taxa:
                     matrix_string += taxon + "\t"
                     string = ""
-                    for t in matrix[i][start_c:end_c]:
+                    for t in matrix[i][p[0]-1:p[1]]:
                         string += t
                     matrix_string += string + "\n"
-                    i += 1           
+                    i += 1          
+                n_part += 1
         else:
             for taxon in taxa:
                 matrix_string += taxon + "\t"
@@ -913,3 +974,29 @@ def _check_data(XML):
     _check_taxa(XML) # again will raise an error if test fails
 
     return
+
+def _get_source_element_from_tree_name(XML, reqname):
+    """ Returns the source element (etree.Element object)
+    given a tree name from the current XML. THis allows the metadata for 
+    a tree to be obtained, given just the name
+    """
+
+    xml_root = etree.fromstring(XML)
+    # By getting source, we can then loop over each source_tree
+    # within that source and construct a unique name
+    find = etree.XPath("//source")
+    sources = find(xml_root)
+
+    # loop through all sources
+    for s in sources:
+        # for each source, get source name
+        name = s.attrib['name']
+        # get trees
+        tree_no = 1
+        for t in s.xpath("source_tree/tree_data"):
+            t_name = name+"_"+str(tree_no)
+            if t_name == reqname:
+                return s.xpath("source_tree")[0]
+            tree_no += 1
+
+    return None

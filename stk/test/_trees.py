@@ -84,22 +84,24 @@ class TestImportTree(unittest.TestCase):
         self.assert_(matrix.all() == expected_matrix.all())
         self.assert_(expected_taxa == taxa)
 
-    def test_create_nexus_matrix(self):
+#    def test_create_nexus_matrix(self):
+#        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
+#        matrix = create_matrix(XML,format="nexus")
+#        handle = StringIO.StringIO(matrix)
+#
+#    def test_create_tnt_matrix(self):
+#        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
+#        matrix = create_matrix(XML)
+#
+#    def test_create_tnt_part_matrix(self):
+#        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
+#        matrix = create_matrix(XML,format="hennig",partitioning=True,partition_on='trees')
+#
+    def test_create_tnt_part_char_matrix(self):
         XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
-        matrix = create_matrix(XML,format="nexus")
-        handle = StringIO.StringIO(matrix)
-        print matrix
-        
+        matrix = create_matrix(XML,format="hennig",partitioning=True,partition_on='char_types')
+        print matrix   
 
-    def test_create_tnt_matrix(self):
-        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
-        matrix = create_matrix(XML)
-
-    def test_create_tnt_part_matrix(self):
-        XML = etree.tostring(etree.parse('data/input/create_matrix.phyml',parser),pretty_print=True)
-        matrix = create_matrix(XML,format="hennig",partitioning=True,partition_on='trees')
-        print matrix
-        
     def test_delete_taxa(self):
         t = "((A_1:1.00000,B_1:1.00000)0.00000:0.00000,F_1:1.00000,E_1:1.00000,(G_1:1.00000,H_1:1.00000)0.00000:0.00000)0.00000:0.00000;"
         new_tree = _delete_taxon("H_1", t)

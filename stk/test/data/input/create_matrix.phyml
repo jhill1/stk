@@ -61,7 +61,7 @@
       </source_publication>
       <source_tree>
         <character_data>
-          <character type="molecular" name="12S"/>
+          <character type="morphological" name="feathers"/>
         </character_data>
         <analysis_used>
           <analysis name="Bayesian"/>
@@ -102,7 +102,7 @@
       </source_publication>
       <source_tree>
         <character_data>
-          <character type="molecular" name="12S"/>
+          <character type="other" name="randomness"/>
         </character_data>
         <analysis_used>
           <analysis name="Bayesian"/>
