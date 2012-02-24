@@ -68,6 +68,10 @@ def main():
             action='store_true',
             default=False,
             help="Overwrite the exisitng file without asking for confirmation")
+    parser_cm.add_argument('--partition',
+            choices=['trees','char_type'],
+            default=False,
+            help="Use partitioning with the matrix. Only works with Hennig format.")
 
     # Set the function that gets called when the sub command is activated
     parser_cm.set_defaults(func=create_matrix)
@@ -116,6 +120,10 @@ def create_matrix(args):
     input_file = args.input
     f_format = args.format
     overwrite = args.overwrite
+    partition_on = args.partition
+    partitioning = False
+    if not partition_on == '':
+        partitioning = True
     
     # check all the options
     if (f_format == None):
@@ -124,6 +132,10 @@ def create_matrix(args):
     if (not f_format == 'nexus' and
         not f_format == 'hennig'):
         print "Format must be one of 'hennig' or 'nexus'"
+        sys.exit(-1)
+
+    if (partitioning and f_format == 'nexus'):
+        print "Partitioning can only be used with hennig format"
         sys.exit(-1)
 
     # Does the input file exist?
@@ -147,7 +159,7 @@ def create_matrix(args):
 
 
     XML = supertree_toolkit.load_phyml(input_file)
-    matrix = supertree_toolkit.create_matrix(XML,format=f_format)
+    matrix = supertree_toolkit.create_matrix(XML,format=f_format,partitioning=partitioning,partition_on=partition_on)
     f = open(output_file, "w")
     f.write(matrix)
     f.close()
