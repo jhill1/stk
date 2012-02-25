@@ -121,7 +121,6 @@ def create_matrix(args):
     f_format = args.format
     overwrite = args.overwrite
     partition_on = args.partition
-    print partition_on
     partitioning = False
     if partition_on:
         partitioning = True

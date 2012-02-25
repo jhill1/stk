@@ -475,7 +475,6 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     taxa = []
     taxa.append("MRPOutgroup")
     taxa.extend(get_all_taxa(XML))
-    print partitioning, partition_on
 
     # our matrix, we'll then append the submatrix
     # to this to make a 2D matrix
@@ -575,7 +574,6 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     if (partitioning and partition_on == 'char_types'):
         partition_boundaries.append([prev_part_boundary,current_char-1])
 
-    print partition_boundaries
     matrix = numpy.array(matrix)
     matrix = matrix.transpose()
     if (format == 'hennig'):
