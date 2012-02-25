@@ -69,7 +69,7 @@ def main():
             default=False,
             help="Overwrite the exisitng file without asking for confirmation")
     parser_cm.add_argument('--partition',
-            choices=['trees','char_type'],
+            choices=['trees','char_types'],
             default=False,
             help="Use partitioning with the matrix. Only works with Hennig format.")
 
@@ -121,8 +121,9 @@ def create_matrix(args):
     f_format = args.format
     overwrite = args.overwrite
     partition_on = args.partition
+    print partition_on
     partitioning = False
-    if not partition_on == '':
+    if partition_on:
         partitioning = True
     
     # check all the options

@@ -475,6 +475,7 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     taxa = []
     taxa.append("MRPOutgroup")
     taxa.extend(get_all_taxa(XML))
+    print partitioning, partition_on
 
     # our matrix, we'll then append the submatrix
     # to this to make a 2D matrix
@@ -531,7 +532,6 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     else:
         names = trees.keys()
 
-    print p_boundary
     partition_boundaries = []
     partition_boundary_count = 0
     prev_part_boundary = 1
