@@ -578,25 +578,15 @@ def create_matrix(XML,format="hennig",partitioning=False,partition_on=None,):
     matrix = matrix.transpose()
     if (format == 'hennig'):
         matrix_string = "xread\n"
-        matrix_string += str(len(taxa)) + " "+str(current_char-1)+"\n"
-        if not partitioning:
-            matrix_string += "\tformat missing = ?"
-            matrix_string += ";\n"
-            matrix_string += "\n\tmatrix\n\n";
+        if (partition_on == "char_types"):
+            matrix_string += "// First partition is Molecular data, second is Morphological data\n"
+        matrix_string += str(current_char-1)+" "+str(len(taxa)) +"\n"
 
         i = 0
         if partitioning:
             n_part = 0
             for p in partition_boundaries:
                 matrix_string += "&[num]\n"
-                if (partition_on == "char_types"):
-                    if (n_part == 0):
-                        matrix_string += "//Molecular data\n"
-                    elif(n_part == 1):
-                        matrix_string += "//Morphological data\n"
-                    else:
-                        print "Help: more than two partitions even though we're partitioning on Morph/Mol"
-                        sys.exit(-1)
                 i = 0
                 for taxon in taxa:
                     matrix_string += taxon + "\t"

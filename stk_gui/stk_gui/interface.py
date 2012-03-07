@@ -953,20 +953,36 @@ class Diamond:
     filename = filename_textbox.get_text()
     format_radio_1 = self.create_matrix_gui.get_widget("matrix_format_tnt_chooser")
     format_radio_2 = self.create_matrix_gui.get_widget("matrix_format_nexus_chooser")
+    partitioning = self.create_matrix_gui.get_widget("partition_chooser")
 
     if (format_radio_1.get_active()):
         format = 'hennig'
     elif (format_radio_2.get_active()):
         format = 'nexus'
     else:
-        format = None
+        self.create_matrix_dialog.hide()
         dialogs.error(self.main_window,"Error creating matrix. Incorrect format.")
         return
+    partition = partitioning.get_active_text()
+    if (partition == "None"):
+        do_partition = False
+        partition_on = None
+    elif (partition == "Trees"):
+        do_partition = True
+        partition_choice = "trees"
+    elif (partition == "Character Types"):
+        do_partition = True
+        partition_choice = "char_types"
+    else:
+        self.create_matrix_dialog.hide()
+        dialogs.error(self.main_window,"Error creating matrix. Incorrect format.")
+        return
+
 
     f = StringIO.StringIO()
     self.tree.write(f)
     XML = f.getvalue()
-    matrix = stk.create_matrix(XML,format=format)
+    matrix = stk.create_matrix(XML,format=format,partitioning=do_partition,partition_on=partition_choice)
     f = open(filename, "w")
     f.write(matrix)
     f.close()    
