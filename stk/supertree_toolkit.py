@@ -1531,6 +1531,12 @@ def load_phyml(filename):
     parser = etree.XMLParser(remove_blank_text=True)
     return etree.tostring(etree.parse(filename,parser),pretty_print=True)
 
+def load_phyml_string(phyml_string):
+    """ Returns XML from string after parsing it using 
+        an etree XML parser.
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    return etree.tostring(etree.fromstring(phyml_string, parser), pretty_print=True)
 
 def substitute_taxa(XML, old_taxa, new_taxa=None, only_existing=False, ignoreWarnings=False, verbose=False, skip_existing=False):
     """
