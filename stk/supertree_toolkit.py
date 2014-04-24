@@ -57,6 +57,8 @@ PLATFORM = sys.platform
 # All functions take XML and a list of other arguments, process the data and return
 # it back to the user interface handler to save it somewhere
 
+HISTORY_EVENT_CLEAN_DATA = "Clean data"
+
 def create_name(authors, year, append=''):
     """ 
     Construct a sensible from a list of authors and a year for a 
@@ -2266,6 +2268,8 @@ def clean_data(XML):
            XML = _swap_tree_in_XML(XML,new_tree,t) 
 
     XML = _check_informative_trees(XML,delete=True)
+    
+    XML = add_historical_event(XML, HISTORY_EVENT_CLEAN_DATA)
 
     return XML
 
