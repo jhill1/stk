@@ -2393,7 +2393,7 @@ class Diamond:
      self.tree.write(f)
      XML = f.getvalue() 
      try:
-        XML = stk.clean_data(XML) 
+        XML = stk.clean_data(XML, save_history=True) #Cleans data and saves history event. 
         XML = stk.all_sourcenames(XML)
      except NoAuthors as detail:
         dialogs.error(self.main_window,detail.msg)
@@ -2421,13 +2421,10 @@ class Diamond:
         return 
 
      XML = _removeNonAscii(XML)
-     # Add a history event
-     XML = stk.add_historical_event(XML, "Cleaned data")
      ios = StringIO.StringIO(XML)
 
      self.update_data(ios, "Error cleaning data")
      dialogs.message_box(self.main_window, "Clean data", "Data cleaned")      
-     
 
      return 
 

@@ -57,7 +57,7 @@ PLATFORM = sys.platform
 # All functions take XML and a list of other arguments, process the data and return
 # it back to the user interface handler to save it somewhere
 
-HISTORY_EVENT_CLEAN_DATA = "Clean data"
+HISTORY_EVENT_CLEAN_DATA = "Cleaned data"
 
 def create_name(authors, year, append=''):
     """ 
@@ -2236,7 +2236,7 @@ def read_matrix(filename):
     return matrix,taxa
 
 
-def clean_data(XML):
+def clean_data(XML, save_history=False):
     """ Cleans up (i.e. deletes) non-informative trees and empty sources
         Same function as check data, but instead of raising message, simply fixes the problems.
     """
@@ -2269,7 +2269,8 @@ def clean_data(XML):
 
     XML = _check_informative_trees(XML,delete=True)
     
-    XML = add_historical_event(XML, HISTORY_EVENT_CLEAN_DATA)
+    if save_history :
+        XML = add_historical_event(XML, HISTORY_EVENT_CLEAN_DATA)
 
     return XML
 
