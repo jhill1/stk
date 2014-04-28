@@ -1338,10 +1338,9 @@ def clean_data(args):
         print msg
         traceback.print_exc()
         return 
-
-    f = open(output_file, "w")
-    f.write(XML)
-    f.close()
+    
+    with open(output_file, 'w') as f:
+        f.write(XML)
     
 def replace_genera(args):
     """ replace genera with a polytomy of species in that genera (if in data)
