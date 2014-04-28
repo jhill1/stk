@@ -275,6 +275,7 @@ def main():
             help='The input phyml file')
     parser_cm.set_defaults(func=safe_taxonomic_reduction)
 
+    
 
     # Data summary command
     parser_cm = subparsers.add_parser('data_ind',
@@ -989,7 +990,6 @@ def import_data(args):
     f.write(phyml)
     f.close()
 
-
 def export_data(args):
     """ Export a PHYML to an old-style STK format (directory based).
     """
@@ -1294,7 +1294,6 @@ def clean_data(args):
     """
 
     # Parse the args
-    verbose = args.verbose
     output_file = args.output
     input_file = args.input
     overwrite = args.overwrite
@@ -1306,18 +1305,18 @@ def clean_data(args):
     # check if output files are there
     if (os.path.exists(output_file) and not overwrite):
         print "Output file exists. Either remove the file or use the --overwrite flag."
-        print "Do you wish to continue? [Y/n]"
+        print "Do you wish to continue? [Y/n]" #Default is Y
         while True:
             k=inkey()
             if k.lower() == 'n':
                 print "Exiting..."
                 sys.exit(0)
-            if k.lower() == 'y':
+            else : 
                 break
 
     XML = supertree_toolkit.load_phyml(input_file)
     try:
-        XML = supertree_toolkit.clean_data(XML)
+        XML = supertree_toolkit.clean_data(XML, save_history=True)
     except NotUniqueError as detail:
         msg = "***Error: Failed to clean data.\n"+detail.msg
         print msg
