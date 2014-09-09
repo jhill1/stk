@@ -2160,7 +2160,7 @@ class TaxonomyFetcher(threading.Thread):
                             self.queue.task_done()
                             continue
                         # otherwise, let's fill in info here - only if extinct!
-                        if data['records'][0]['ext'] == 0:
+                        if data['records'][0].has_key('ext') and data['records'][0]['ext'] == 0:
                             this_taxonomy = {}
                             this_taxonomy['provider'] = 'PBDB'
                             for level in taxonomy_levels:
@@ -2189,7 +2189,7 @@ class TaxonomyFetcher(threading.Thread):
                             # extant, but not in EoL - leave the user to sort this one out
                             with self.lock:
                                 self.taxonomy[taxon] = {}
-                    ID = str(data['results'][0]['id']) # take first hit
+                    ID = str(data['results'][0]['id']) # take first hit // There is a strange error with 'id' does not work on all cases
                     # Now look for taxonomies
                     URL = "http://eol.org/api/pages/1.0/"+ID+".json"
                     req = urllib2.Request(URL)
@@ -2250,8 +2250,13 @@ class TaxonomyFetcher(threading.Thread):
                         #Send result to dictionary
                         self.taxonomy[taxon] = this_taxonomy
                 except urllib2.HTTPError:
-                    print("Network error when processing {} ".format(taxon,))
-                    logging.info("Network error when processing {} ".format(taxon,))
+                    print("Network error when processing {}.".format(taxon,))
+                    logging.info("Network error when processing {}.".format(taxon,))
+                    self.queue.task_done()
+                    continue
+                except KeyError as e:
+                    print("Fatal key error while processing {}".format(taxon,))
+                    logging.info("Fatal key error while processing {}".format(taxon,))
                     self.queue.task_done()
                     continue
             else :
