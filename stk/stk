@@ -169,6 +169,21 @@ def main():
     parser_cm.set_defaults(func=import_data)
 
 
+    # import OT data command
+    parser_cm = subparsers.add_parser('import_opentree',
+            help='Import data from OpenTree project.'
+            )
+    parser_cm.add_argument('name',
+            help='A name to search for. E.g. Arthropod')
+    parser_cm.add_argument('output', 
+            help='The output phyml file')
+    parser_cm.add_argument('--overwrite',
+            action='store_true',
+            default=False,
+            help="Overwrite the existing file without asking for confirmation")
+    parser_cm.set_defaults(func=import_ot_data)
+
+
     # export data command
     parser_cm = subparsers.add_parser('export_data',
             help='Export data to old STK dataset.'
@@ -994,6 +1009,60 @@ def import_data(args):
     f = open(output_file, "w")
     f.write(phyml)
     f.close()
+
+def import_ot_data(args):
+    """ Import OpenTree data into a PHYML file.
+        Note the data copy is not perfect.
+    """
+    # Parse the args
+    verbose = args.verbose
+    output_file = args.output
+    name = args.name
+    overwrite = args.overwrite
+
+    if (os.path.exists(output_file) and not overwrite):
+        print "Output file exists. Either remove the file or use the --overwrite flag."
+        print "Do you wish to continue? [Y/n]"
+        while True:
+            k=inkey()
+            if k.lower() == 'n':
+                print "Exiting..."
+                sys.exit(0)
+            if k.lower() == 'y':
+                break
+
+    try:
+        phyml = supertree_import_export.import_from_opentree(name,verbose=verbose) 
+    except STKImportExportError as e:
+        print e.msg
+    except NotUniqueError as detail:
+        msg = "***Error: Failed to substituting taxa.\n"+detail.msg
+        print msg
+        return
+    except InvalidSTKData as detail:
+        msg = "***Error: Failed substituting taxa.\n"+detail.msg
+        print msg
+        return
+    except UninformativeTreeError as detail:
+        msg = "***Error: Failed to substituting taxa.\n"+detail.msg
+        print msg
+        return
+    except TreeParseError as detail:
+        msg = "***Error: failed to parse a tree in your data set.\n"+detail.msg
+        print msg
+        return
+    except: 
+        msg = "***Error: Failed sbstituting taxa due to unknown error.\n"
+        print msg
+        traceback.print_exc()
+        return 
+
+    # Add an event to the history of the file
+    phyml = supertree_toolkit.add_historical_event(phyml, "Data created using OpenTree data searching for: " + name) 
+    f = open(output_file, "w")
+    f.write(phyml)
+    f.close()
+
 
 
 def export_data(args):

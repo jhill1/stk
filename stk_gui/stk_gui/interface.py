@@ -173,6 +173,7 @@ class Diamond:
                     "on_create_matrix": self.on_create_matrix,
                     "on_export": self.on_export,
                     "on_import": self.on_import,
+                    "on_import_ot": self.on_import_ot,
                     "on_export_trees": self.on_export_trees,
                     "on_export_bib" : self.on_export_bib,
                     "on_sub_taxa": self.on_sub_taxa,
@@ -1862,6 +1863,57 @@ class Diamond:
       filename_textbox.set_text(filename)
 
       return
+
+  def on_import_ot(self, widget=None):
+    """ import from OT project
+    """
+
+    signals = {"on_import_ot_dialog_close": self.on_import_ot_cancel_button,
+               "on_import_ot_cancel_clicked": self.on_import_ot_cancel_button,
+               "on_import_ot_button_clicked": self.on_import_ot_button,}
+
+    self.import_ot_gui = gtk.glade.XML(self.gladefile, root="import_opentree")
+    self.import_ot_dialog = self.import_ot_gui.get_widget("import_opentree")
+    self.import_ot_gui.signal_autoconnect(signals)
+    import_button = self.import_ot_gui.get_widget("button1")
+    import_button.connect("activate", self.on_import_button)
+    self.import_ot_dialog.show()
+
+    return
+      
+  def on_import_ot_button(self, button):
+
+    names_textbox = self.import_gui.get_widget("textview1")
+    names = names_textbox.get_buffer()
+    print names
+
+    try:
+        XML = stk_import_export.import_ot_data(names,verbose=False)
+    except:
+           dialogs.error_tb(self.main_window, "Error parsing the OpenTree data. Please check the console for error messages.")
+           return
+    XML = _removeNonAscii(XML)
+    # Add a history event
+    XML = stk.add_historical_event(XML, "Data imported from OpenTree, searching for: "+names)
+    ios = StringIO.StringIO(XML)
+    self.update_data(ios, "Error importing data whilst checking XML")
+
+    #except STKImportExportError as e:
+    #    dialogs.error(self.main_window, e.msg)
+    #except:
+    #    dialogs.error(self.main_window, "Error importing.")
+
+
+    
+    self.import_dialog.hide()
+
+    return
+
+  def on_import_ot_cancel_button(self, button):
+      """ Close the import dialogue
+      """
+
+      self.import_ot_dialog.hide()
 
   def on_import(self, widget=None):
     """ Export data to old-style STK data
