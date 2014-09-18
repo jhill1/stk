@@ -605,7 +605,7 @@ class Tree(object):
                     raise Glitch, gm
 
             elif tok[0] in string.letters or tok[0] in string.digits or tok[0] == "'" or tok[0] in [
-                '_', '#', '\\', '/', '"', '(', ')']:
+                '_', '#', '\\', '/', '"', '(', ')', '.']:
                 if len(self.nodes) == 0: # A single-node tree, not ()aName, rather just aName.
                     isAfterParen = 1
                 if not (isAfterParen or isAfterComma):

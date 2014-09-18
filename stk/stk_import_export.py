@@ -66,8 +66,13 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
     nXML = 0
     # fetch data from opentree
     response = opentreelib.studies_find_trees(study_property='ot:ottTaxonName',value=name)
+    if (verbose):
+        print "Found "+str(len(response['matched_studies'])) + " studies in OpenTree"
     bibtex_data = ""
     for study in response['matched_studies']:
+        if (verbose):
+            print "Dealing with study: "+study['ot:studyId']
+
         # pull the study info - this contains all the data
         study_id = study['ot:studyId']
         study_data = opentreelib.get_study("pg_"+study_id)
@@ -86,8 +91,13 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
         for tree in study['matched_trees']:
             trees.append(opentreelib.get_study_tree("pg_"+study_id,tree['oti_tree_id'].split('_')[-1],schema="newick"))
 
+        if (verbose):
+            print "\tFound "+str(len(trees))+" tree(s)"
+
         # parse and add to XML
         # split the publication up - we're going to use the CrossRef APIs for this
+        if (verbose):
+            print "\tDealing with the bibliographic data"
         bibtex = fetch_doi_from_crossref(publication_data)
         # Our bibliography parser
         b = biblist.BibList()
@@ -139,7 +149,7 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
                     tree_string_string = etree.SubElement(tree_string,"string_value")
                     new_tree = re.sub(r'\[.+?\]\s*','',new_tree)
                     t = supertree_toolkit._parse_tree(str(new_tree))
-                    new_tree = supertree_toolkit._correctly_quote_taxa(t.writeNewick(fName=None,toString=True).strip())
+                    new_tree = t.writeNewick(fName=None,toString=True).strip()
                     tree_string_string.text = new_tree
                     tree_string_string.tail="\n      "
                     tree_string_string.attrib['lines'] = "1"
@@ -186,9 +196,8 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
             else:
                 # emit warning
                 continue
-
-            # clean up and sort
-            # check the names, etc
+            if (verbose):
+                print "\tDone this one"
 
         nXML += 1
 
@@ -196,8 +205,7 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
         msg = "Didn't find any trees in OpenTree for your search. Sorry!"
         raise STKImportExportError(msg)
 
-    # create all sourcenames
-    phyml = supertree_toolkit.all_sourcenames(etree.tostring(xml_root))
+    phyml = etree.tostring(xml_root)
 
     return phyml
 

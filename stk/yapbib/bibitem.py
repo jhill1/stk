@@ -527,9 +527,8 @@ class BibItem(dict):
             pages = strip_non_ascii(pages)
             sp+=1
             v = '\n%s<string_value lines="1">%s</string_value>\n%s'%(sp*spc,pages,(sp-1)*spc)
-            print s
             sp-=1
-            s+= '%s<pages>%s</pages>\n' %(sp*spc,v)
+            s+= str('%s<pages>%s</pages>\n' %(sp*spc,v))
 
     # number - article only
     if (entry_type == "article"):
