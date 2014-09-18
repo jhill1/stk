@@ -25,6 +25,13 @@ import latex
 latex.register()
 
 
+def strip_non_ascii(string):
+    ''' Returns the string without non ASCII characters'''
+    stripped = (c for c in string if 0 < ord(c) < 127)
+    return ''.join(stripped)
+
+
+
 # Index used for internally for each part of a name
 A_VON=0; A_LAST=1; A_FIRST=2; A_JR=3
 ##########################################################################################
@@ -517,8 +524,10 @@ class BibItem(dict):
                 pages = firstpage + "-" + lastpage
             # escape
             pages = escape(pages)
+            pages = strip_non_ascii(pages)
             sp+=1
             v = '\n%s<string_value lines="1">%s</string_value>\n%s'%(sp*spc,pages,(sp-1)*spc)
+            print s
             sp-=1
             s+= '%s<pages>%s</pages>\n' %(sp*spc,v)
 

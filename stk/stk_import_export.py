@@ -33,9 +33,245 @@ from copy import deepcopy
 from supertree_toolkit import _parse_xml
 from stk_exceptions import *
 from stk_internals import *
+import stk.opentreelib as opentreelib
 import stk.p4
 import unicodedata
 import string as python_string
+import stk.yapbib.biblist as biblist
+import stk.yapbib.bibparse as bibparse
+import stk.yapbib.bibitem as bibitem
+
+def import_from_opentree(name, verbose=False, ignoreWarnings=False):
+    """ Converts OpenTree data to the PHYML
+    file format. Note: the data imported may not be complete. 
+    It's up to the calling program to save the resulting xml string somewhere sensible.
+    """
+
+    # Parse the file and away we go:
+    base_xml = """<?xml version='1.0' encoding='utf-8'?>
+<phylo_storage>
+  <project_name>
+    <string_value lines="1"/>
+  </project_name>
+  <sources>
+  </sources>
+  <history/>
+</phylo_storage>"""
+    xml_root = etree.fromstring(base_xml)
+    find = etree.XPath("//sources")
+    sources = find(xml_root)[0]
+    # add the first name as project name
+    xml_root.xpath("/phylo_storage/project_name/string_value")[0].text = name
+
+    nXML = 0
+    # fetch data from opentree
+    response = opentreelib.studies_find_trees(study_property='ot:ottTaxonName',value=name)
+    bibtex_data = ""
+    for study in response['matched_studies']:
+        # pull the study info - this contains all the data
+        study_id = study['ot:studyId']
+        study_data = opentreelib.get_study("pg_"+study_id)
+        meta_data = study_data['data']['nexml']['meta']
+        for data in meta_data:
+            try:
+                if data[u'@property'] == 'ot:studyPublicationReference':
+                    publication_data = data['$']
+                    break
+            except KeyError:
+                continue
+
+
+        # pull the trees as newick - so much easier!
+        trees = []
+        for tree in study['matched_trees']:
+            trees.append(opentreelib.get_study_tree("pg_"+study_id,tree['oti_tree_id'].split('_')[-1],schema="newick"))
+
+        # parse and add to XML
+        # split the publication up - we're going to use the CrossRef APIs for this
+        bibtex = fetch_doi_from_crossref(publication_data)
+        # Our bibliography parser
+        b = biblist.BibList()
+        # Track back along xpath to find the sources where we're about to add a new source
+        sources = xml_root.xpath('sources')[0]
+        sources.tail="\n      "
+        bibfile = StringIO(bibtex)
+        try: 
+            b.import_bibtex(bibfile,True,False)
+        except bibparse.BibAuthorError as e:
+            # This seems to be raised if the authors aren't formatted correctly
+            raise BibImportError("Error importing bib file. Check all your authors for correct format: " + e.msg)
+        except bibparse.BibKeyError as e:
+            raise BibImportError("Error importing bib file. " + e.msg)
+        except AttributeError as e:
+            # This seems to occur if the keys are not set for the entry
+            raise BibImportError("Error importing bib file. Check all your entry keys. "+e.msg)
+        except:
+            raise BibImportError("Error importing bibliography") 
+
+        items= b.sortedList[:]
+        for entry in items:
+            # for each bibliographic entry, create the XML stub and
+            # add it to the main XML
+            it= b.get_item(entry)
+            xml_snippet = it.to_xml()
+            if xml_snippet != None:
+                # turn this into an etree
+                publication = _parse_xml(xml_snippet)
+                # create top of source
+                source = etree.Element("source")
+                # now attach our publication
+                source.append(publication)
+                new_source = supertree_toolkit.single_sourcename(etree.tostring(source,pretty_print=True))
+                source = _parse_xml(new_source)
+                
+                # now create tail of source
+                # We might have multiple trees, so loopy loopy
+                # Note - this is basically verbose from the import bib function. Refactor
+                # this so it's a function
+                for new_tree in trees:
+                    s_tree = etree.SubElement(source, "source_tree")
+                    s_tree.tail="\n      "
+                    # Tree data
+                    tree = etree.SubElement(s_tree,"tree")
+                    tree.tail="\n      "
+                    tree_string = etree.SubElement(tree,"tree_string")
+                    tree_string.tail="\n      "
+                    tree_string_string = etree.SubElement(tree_string,"string_value")
+                    new_tree = re.sub(r'\[.+?\]\s*','',new_tree)
+                    t = supertree_toolkit._parse_tree(str(new_tree))
+                    new_tree = supertree_toolkit._correctly_quote_taxa(t.writeNewick(fName=None,toString=True).strip())
+                    tree_string_string.text = new_tree
+                    tree_string_string.tail="\n      "
+                    tree_string_string.attrib['lines'] = "1"
+                    # Figure and page number stuff
+                    figure_legend = etree.SubElement(tree,"figure_legend")
+                    figure_legend.tail="\n      "
+                    figure_legend_string = etree.SubElement(figure_legend,"string_value")
+                    figure_legend_string.tail="\n      "
+                    figure_legend_string.attrib['lines'] = "1"
+                    figure_number = etree.SubElement(tree,"figure_number")
+                    figure_number.tail="\n      "
+                    figure_number_string = etree.SubElement(figure_number,"string_value")
+                    figure_number_string.tail="\n      "
+                    figure_number_string.attrib['lines'] = "1"
+                    page_number = etree.SubElement(tree,"page_number")
+                    page_number.tail="\n      "
+                    page_number_string = etree.SubElement(page_number,"string_value")
+                    page_number_string.tail="\n      "
+                    page_number_string.attrib['lines'] = "1"
+                    tree_inference = etree.SubElement(tree,"tree_inference")
+                    # taxa data
+                    taxa = etree.SubElement(s_tree,"taxa_data")
+                    taxa.tail="\n      "
+                    # Note: we do not add all elements as otherwise they get set to some option
+                    # rather than remaining blank (and hence blue in the interface)
+
+                # append our new source to the main tree
+                # if sources has no valid source, overwrite,
+                # else append
+                valid = True
+                i = 0
+                for ele in sources:
+                    try:
+                        ele.attrib['name']
+                        i += 1
+                        continue
+                    except:
+                        valid = False
+                if not valid:
+                    sources[i] = source
+                else:
+                    sources.append(source)
+                
+            else:
+                # emit warning
+                continue
+
+            # clean up and sort
+            # check the names, etc
+
+        nXML += 1
+
+    if (nXML == 0):
+        msg = "Didn't find any trees in OpenTree for your search. Sorry!"
+        raise STKImportExportError(msg)
+
+    # create all sourcenames
+    phyml = supertree_toolkit.all_sourcenames(etree.tostring(xml_root))
+
+    return phyml
+
+def scrub(value):
+    """
+    Clean up the incoming queries to remove unfriendly
+    characters that may come from copy and pasted citations.
+
+    Also remove all punctuation from text.
+    
+    """
+    from curses import ascii
+    import string
+
+    punctuation = set(string.punctuation)
+    if not value:
+        return
+    n = ''.join([c for c in value.strip() if not ascii.isctrl(c)])
+    #Strip newline or \f characters.
+    n2 = n.replace('\n', '').replace('\f', '')
+    cleaned = ''.join(ch for ch in n2 if ch not in punctuation)
+    return cleaned
+
+def fetch_doi_from_crossref(citation):
+    import urllib2
+    import requests
+    import json
+    url = 'http://search.crossref.org/links'
+    #Scrub the citation query.
+    cleaned = scrub(citation)
+    #Turn query into a list because the API is expecting a list.
+    citations = [cleaned]
+    payload = citations
+    citation_data = request(url,payload,headers={'Content-Type': 'application/json'})
+    if len(citation_data['results']) == 0:
+        bibtex = ""
+    else:
+        #Lookup the DOIs and get metadata for the located citations.
+        item = citation_data['results'][0] # get first hit
+        doi = item.get('doi')
+        if doi == None:
+            bibtex = ""
+        else:
+            bibtex = request(doi,payload,headers={'Accept': 'application/x-bibtex'},process_response_as='text')
+    return bibtex
+
+def request(url,payload=None,headers=None,protocol="POST",process_response_as="json"):
+    import json
+    from urllib2 import Request
+    from urllib2 import urlopen
+    from urllib import urlencode
+    
+    if headers is None:
+        headers = {'content-type': 'application/json'}
+    if protocol == "POST":
+        if payload is None:
+            payload = {}
+        data = json.dumps(payload).encode("utf-8")
+    else:
+        data = None
+    request = Request(
+            url=url,
+            data=data,
+            headers=headers)
+    response = urlopen(request)
+    response_contents = response.read()
+    if process_response_as == "json":
+        response_contents = json.loads(response_contents)
+    elif process_response_as == "text":
+        pass
+    else:
+        raise ValueError("Response type '{}' is not supported".format(process_response_as))
+    return response_contents
+
 
 def export_to_old(xml, output_dir, verbose=False, ignoreWarnings=False):
 
