@@ -41,7 +41,7 @@ import stk.yapbib.biblist as biblist
 import stk.yapbib.bibparse as bibparse
 import stk.yapbib.bibitem as bibitem
 
-def import_from_opentree(name, verbose=False, ignoreWarnings=False):
+def import_from_opentree(name, verbose=False, queue=None, ignoreWarnings=False):
     """ Converts OpenTree data to the PHYML
     file format. Note: the data imported may not be complete. 
     It's up to the calling program to save the resulting xml string somewhere sensible.
@@ -206,8 +206,11 @@ def import_from_opentree(name, verbose=False, ignoreWarnings=False):
         raise STKImportExportError(msg)
 
     phyml = etree.tostring(xml_root)
-
-    return phyml
+    if (queue == None):
+        return phyml
+    else:
+        queue.put([phyml])
+        return
 
 def scrub(value):
     """

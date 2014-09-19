@@ -3349,6 +3349,7 @@ def _removeNonAscii(s):
     """
     Removes any non-ascii characters from string, s.
     """
+    print s
     return "".join(i for i in s if ord(i)<128)
 
 def _getTaxaFromNewick(tree):

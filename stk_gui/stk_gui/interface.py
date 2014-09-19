@@ -1595,7 +1595,7 @@ class Diamond:
         try:
             output, can_replace= self.str_q.get(True,0.1)
             waiting=False
-        except Queue.empty:
+        except Queue.Empty:
             str_progressbar.pulse()
             time.sleep(0.5)
             while gtk.events_pending():
@@ -1882,30 +1882,43 @@ class Diamond:
     return
       
   def on_import_ot_button(self, button):
+    from multiprocessing import Queue, Process
+    from Queue import Empty
+    import time
 
-    names_textbox = self.import_gui.get_widget("textview1")
-    names = names_textbox.get_buffer()
-    print names
+    names_textbox = self.import_ot_gui.get_widget("entry1")
+    names = names_textbox.get_text()
+    ot_progressbar = self.import_ot_gui.get_widget("progressbar1")
+    ot_progressbar.set_pulse_step(0.1)
+    self.ot_q = Queue()
 
     try:
-        XML = stk_import_export.import_ot_data(names,verbose=False)
+        self.ot_p = Process(target=stk_import_export.import_from_opentree,args=(names,False,self.ot_q,False))
+    except HTTPError:
+           dialogs.error_tb(self.main_window, "Error with fetching OpenTree data. Try again in a few minutes.")
+           return
     except:
            dialogs.error_tb(self.main_window, "Error parsing the OpenTree data. Please check the console for error messages.")
            return
-    XML = _removeNonAscii(XML)
+    self.ot_p.start()
+    waiting=True
+    while waiting:
+        try:
+            XML = self.ot_q.get(True,0.1)
+            waiting=False
+        except Empty:
+            ot_progressbar.pulse()
+            time.sleep(0.5)
+            while gtk.events_pending():
+                gtk.main_iteration()
+    self.ot_p.join()
+
     # Add a history event
     XML = stk.add_historical_event(XML, "Data imported from OpenTree, searching for: "+names)
     ios = StringIO.StringIO(XML)
     self.update_data(ios, "Error importing data whilst checking XML")
-
-    #except STKImportExportError as e:
-    #    dialogs.error(self.main_window, e.msg)
-    #except:
-    #    dialogs.error(self.main_window, "Error importing.")
-
-
     
-    self.import_dialog.hide()
+    self.import_ot_dialog.hide()
 
     return
 
