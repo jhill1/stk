@@ -209,7 +209,7 @@ def import_from_opentree(name, verbose=False, queue=None, ignoreWarnings=False):
     if (queue == None):
         return phyml
     else:
-        queue.put([phyml])
+        queue.put(phyml)
         return
 
 def scrub(value):
