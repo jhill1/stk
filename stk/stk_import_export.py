@@ -206,6 +206,7 @@ def import_from_opentree(name, verbose=False, queue=None, ignoreWarnings=False):
         raise STKImportExportError(msg)
 
     phyml = etree.tostring(xml_root)
+    phyml = supertree_toolkit.set_all_tree_names(phyml)
     if (queue == None):
         return phyml
     else:
