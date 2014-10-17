@@ -184,7 +184,8 @@ class Diamond:
                     "on_str": self.on_str,
                     "on_replace_genera": self.on_replace_genera,
                     "on_clean_data": self.on_clean_data,
-                    "on_create_subset": self.on_create_subset
+                    "on_create_subset": self.on_create_subset,
+                    "on_name_trees": self.on_name_trees,
                     }
 
     self.gui.signal_autoconnect(signals)
@@ -2168,6 +2169,7 @@ class Diamond:
         taxa = stk.get_all_taxa(XML)
     except TreeParseError as e:
         dialogs.error(self.main_window,e.msg)
+        return
     except:
         msg = "Failed to parse XML and obtain taxa. You probably have an unfinished dataset"
         dialogs.error(self.main_window,msg)
@@ -2460,7 +2462,7 @@ class Diamond:
      self.tree.write(f)
      XML = f.getvalue() 
      try:
-        XML = stk.all_sourcenames(XML)
+        XML = stk.all_sourcenames(XML,trees=True)
      except NoAuthors as detail:
         dialogs.error(self.main_window,detail.msg)
         return 
@@ -2805,6 +2807,44 @@ class Diamond:
         dialogs.error_tb(self.main_window,msg)
         return
 
+  def on_name_trees(self, button):
+     """
+     Names unnamed trees 
+     """
+     f = StringIO.StringIO()
+     self.tree.write(f)
+     XML = f.getvalue() 
+     try:
+        XML = stk.set_all_tree_names(XML)
+     except NotUniqueError as detail:
+            msg = "Failed to name trees.\n"+detail.msg
+            dialogs.error(self.main_window,msg)
+            return
+     except InvalidSTKData as detail:
+            msg = "Failed to name trees.\n"+detail.msg
+            dialogs.error(self.main_window,msg)
+            return
+     except UninformativeTreeError as detail:
+            msg = "Failed to name trees.\n"+detail.msg
+            dialogs.error(self.main_window,msg)
+            return 
+     except TreeParseError as detail:
+            msg = "Failed to name trees due to tree parsing error.\n"+detail.msg
+            dialogs.error(self.main_window,msg)
+            return 
+     except:
+            msg = "Failed to name trees due to an unknown error. Check the console output"
+            dialogs.error(self.main_window,msg)
+            return 
+         
+     XML = _removeNonAscii(XML)
+     ios = StringIO.StringIO(XML)
+
+     self.update_data(ios, "Error standardising tree names")
+     dialogs.message_box(self.main_window, "Standardise tree names", "Tree names standardised")      
+     
+
+     return 
   def update_data(self,ios, error, skip_warning=False):
 
      try:
