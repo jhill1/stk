@@ -96,8 +96,8 @@ def main():
                     continue
                 tax_data[t] = taxonomy[taxon][level]
             except KeyError:
-                print "Couldn't find "+t+" in taxonomy. Adding as null data"
-                tax_data[t] = 'zzzzz' # it's at the end...
+                print "Couldn't find "+t+" in taxonomy. Ignoring."
+                #tax_data[t] = 'zzzzz' # it's at the end...
 
         from sets import Set
         unique = set(tax_data.values())
