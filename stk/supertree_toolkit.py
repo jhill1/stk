@@ -1161,30 +1161,23 @@ def get_characters_from_tree(XML,name,sort=False):
 
     characters = []
     # Our input tree has name source_no, so find the source by stripping off the number
-    source_name, number = name.rsplit("_",1)
-    number = int(number.replace("_",""))
     xml_root = _parse_xml(XML)
     # By getting source, we can then loop over each source_tree
-    find = etree.XPath("//source")
-    sources = find(xml_root)
+    find = etree.XPath("//source_tree")
+    source_trees = find(xml_root)
     # loop through all sources
-    for s in sources:
+    for s in source_trees:
         # for each source, get source name
-        name = s.attrib['name']
+        source_name = s.attrib['name']
         if source_name == name:
-            # found the bugger!
-            tree_no = 1
-            for t in s.xpath("source_tree/tree/tree_string"):
-                if tree_no == number:
-                    # and now we have the correct tree. 
-                    # Now we can get the characters for this tree
-                    chars = t.getparent().getparent().xpath("character_data/character")
-                    for c in chars:
-                        characters.append(c.attrib['name'])
-                    if (sort):
-                        characters.sort()
-                    return characters
-                tree_no += 1
+            # and now we have the correct tree. 
+            # Now we can get the characters for this tree
+            chars = s.xpath("character_data/character")
+            for c in chars:
+                characters.append(c.attrib['name'])
+            if (sort):
+                characters.sort()
+            return characters
 
     # should raise exception here
     return characters
@@ -3336,33 +3329,28 @@ def _swap_tree_in_XML(XML, tree, name, delete=False):
     # First thing is to do is find the source name that corresponds to this tree
 
     # Our input tree has name source_no, so find the source by stripping off the number
-    source_name, number = name.rsplit("_",1)
-    number = int(number.replace("_",""))
     xml_root = _parse_xml(XML)
-    # By getting source, we can then loop over each source_tree
-    find = etree.XPath("//source")
-    sources = find(xml_root)
+    # loop through all sources trees
+    find = etree.XPath("//source_tree")
+    source_trees = find(xml_root)
     # loop through all sources
-    for s in sources:
+    for t in source_trees:
         # for each source, get source name
-        s_name = s.attrib['name']
-        if source_name == s_name:
-            # found the bugger!
-            for t in s.xpath("source_tree"):
-                tree_name = t.attrib['name']
-                if (tree_name == name):
-                    if (not tree == None): 
-                        t.xpath("tree/tree_string/string_value")[0].text = tree
-                        # We can return as we're only replacing one tree
-                        return etree.tostring(xml_root,pretty_print=True)
-                    else:
-                        s.remove(t)
-                        if (delete):
-                            # we now need to check the source to check if there are
-                            # any trees in this source now, if not, remove
-                            if (len(s.xpath("source_tree")) == 0):
-                                s.getparent().remove(s)
-                        return etree.tostring(xml_root,pretty_print=True)
+        source_name = t.attrib['name']
+        if source_name == name:
+            if not (tree == None):
+                t.xpath("tree/tree_string/string_value")[0].text = tree
+                # We can return as we're only replacing one tree
+                return etree.tostring(xml_root,pretty_print=True)
+            else:
+                s = t.getparent()
+                s.remove(t)
+                if (delete):
+                    # we now need to check the source to check if there are
+                    # any trees in this source now, if not, remove
+                    if (len(s.xpath("source_tree")) == 0):
+                        s.getparent().remove(s)
+                return etree.tostring(xml_root,pretty_print=True)
 
     return XML
 
