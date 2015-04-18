@@ -1413,7 +1413,7 @@ class Diamond:
         if ( self.data_independence[name][1] == stk.SUBSET):
             data_ind += name + "," + self.data_independence[name][0] + "\n"
     data_ind = data_ind + "\n\nFlagged tree, is identical to:\n"
-    for name in data_independence:
+    for name in self.data_independence:
         if ( self.data_independence[name][1] == stk.IDENTICAL):
             data_ind += name + "," + self.data_independence[name][0] + "\n"
     f = open(self.filename,"w")
