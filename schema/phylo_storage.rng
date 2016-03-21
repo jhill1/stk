@@ -767,6 +767,11 @@ source tree(s).</a:documentation>
       </element>
     </optional>
     <optional>
+      <element name="number_of_characters">
+        <ref name="integer"/>
+      </element>
+    </optional>
+    <optional>
       <element name="alignment_method">
         <optional>
           <element name="algorithm_or_method">

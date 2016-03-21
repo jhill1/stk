@@ -563,6 +563,9 @@ char_info=
     element link_to_online_data {
         anystring
     }?,
+    element number_of_characters {
+        integer
+    }?,
     element alignment_method {
         element algorithm_or_method {
             string
