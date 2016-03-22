@@ -460,8 +460,17 @@ source tree(s).</a:documentation>
       <optional>
         <element name="accession_number_or_specimen_identifier">
           <a:documentation>Accession number/specimen identifier</a:documentation>
+          <attribute name="database_name">
+            <data type="string" datatypeLibrary=""/>
+          </attribute>
           <ref name="anystring"/>
-          <!-- data repository need adding here - move to atributes -->
+          <ref name="comment"/>
+        </element>
+      </optional>
+      <optional>
+        <element name="recon_name">
+          <ref name="anystring"/>
+          <!-- from Meta-Tree data, linked to PBDB data. The above will the the PBDB number -->
         </element>
       </optional>
       <ref name="taxon_type"/>

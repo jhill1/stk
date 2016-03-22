@@ -162,6 +162,10 @@ def main():
             help='The input directory')
     parser_cm.add_argument('output', 
             help='The output phyml file')
+    parser_cm.add_argument('--format',
+            default='old_stk',
+            choices=["meta_tree","old_stk",],
+            help="What format are you importing? Old STK or Meta-Tree?")
     parser_cm.add_argument('--overwrite',
             action='store_true',
             default=False,
@@ -976,6 +980,7 @@ def import_data(args):
     output_file = args.output
     input_dir = args.input
     overwrite = args.overwrite
+    data_format = args.format
 
     if (not os.path.exists(input_dir)):
         print "Input directory cannot be found. Exiting"
@@ -993,19 +998,26 @@ def import_data(args):
                 break
 
     try:
-        phyml = supertree_import_export.import_old_data(input_dir,verbose=verbose) 
+        if data_format == 'old_stk':
+            phyml = supertree_import_export.import_old_data(input_dir,verbose=verbose) 
+        elif data_format == 'meta_tree':
+            phyml = supertree_import_export.import_meta_tree(input_dir,verbose=verbose) 
+        else:
+            msg = "***Error: Couldn't understand your format request. Try one of meta_tree or old_stk.\n"
+            print msg
+            return
     except STKImportExportError as e:
         print e.msg
     except NotUniqueError as detail:
-        msg = "***Error: Failed to substituting taxa.\n"+detail.msg
+        msg = "***Error: Failed to importing taxa.\n"+detail.msg
         print msg
         return
     except InvalidSTKData as detail:
-        msg = "***Error: Failed substituting taxa.\n"+detail.msg
+        msg = "***Error: Failed importing taxa.\n"+detail.msg
         print msg
         return
     except UninformativeTreeError as detail:
-        msg = "***Error: Failed to substituting taxa.\n"+detail.msg
+        msg = "***Error: Failed to importing taxa.\n"+detail.msg
         print msg
         return
     except TreeParseError as detail:
@@ -1013,7 +1025,7 @@ def import_data(args):
         print msg
         return
     except: 
-        msg = "***Error: Failed sbstituting taxa due to unknown error.\n"
+        msg = "***Error: Failed importing taxa due to unknown error.\n"
         print msg
         traceback.print_exc()
         return 

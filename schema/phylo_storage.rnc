@@ -344,8 +344,13 @@ taxon=
         }?,
         ## Accession number/specimen identifier
         element accession_number_or_specimen_identifier {
+            attribute database_name {string},
+            anystring,
+            comment
+        }?,
+        element recon_name {
             anystring
-            # data repository need adding here - move to atributes
+            # from Meta-Tree data, linked to PBDB data. The above will the the PBDB number
         }?,
         taxon_type,
         comment

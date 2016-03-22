@@ -170,6 +170,70 @@ def import_old_data(input_dir, verbose=False):
 
     return phyml
 
+def import_meta_tree(input_dir, verbose=False):
+    """ Converts Meta Tree format (which in turn is based on the old STK dataset (based on directories)
+         to the new PHYML file format. Note: we need XML files to get the meta data and also that
+         the data imported may not be complete. It's up to the calling program to save the resulting 
+         xml string somewhere sensible.
+    """
+
+    # strip trailing path separator if one
+    if (input_dir.endswith(os.path.sep)):
+        t = input_dir[0:-1]
+        input_dir = t
+
+    # Parse the file and away we go:
+    base_xml = """<?xml version='1.0' encoding='utf-8'?>
+<phylo_storage>
+  <project_name>
+    <string_value lines="1"/>
+  </project_name>
+  <sources>
+  </sources>
+  <history/>
+</phylo_storage>"""
+    xml_root = etree.fromstring(base_xml)
+    find = etree.XPath("//sources")
+    sources = find(xml_root)[0]
+    # add the project name from the input directory
+    xml_root.xpath("/phylo_storage/project_name/string_value")[0].text = os.path.basename(input_dir)
+
+    # for each XML
+    nXML = 0;
+    for xml in locate('*.xml', input_dir):
+        print xml
+        # parse XML
+        if (verbose):
+            print "Parsing: "+xml
+        current_xml = etree.parse(xml)
+        # convert into PHYML
+        new_source = convert_to_phyml_source_meta_tree(current_xml)
+
+        # This is now the source_tree portion of the XML
+        source_tree = convert_to_phyml_sourcetree_meta_tree(current_xml, xml)
+         
+        # add into PHYML sources element - need to check this - data have names
+        append_to_source, already_in = already_in_data(new_source,sources)
+        if (not already_in):
+            # append tree to current source
+            new_source.append(deepcopy(source_tree))
+            sources.append(deepcopy(new_source)) # deepcopy otherwise it'll add the same one several times :|
+        else:
+            # we need to find the correct source and append the source_tree to this
+            append_to_source.append(deepcopy(source_tree))
+            
+
+        nXML += 1
+
+    if (nXML == 0):
+        msg = "Didn't find any XML files in this directory"
+        raise STKImportExportError(msg)
+
+    # create all sourcenames
+    phyml = supertree_toolkit.all_sourcenames(etree.tostring(xml_root))
+    phyml = supertree_toolkit.set_all_tree_names(phyml)
+
+    return phyml
 
 def locate(pattern, root=os.curdir):
     """Locate all files matching the pattern with the root dir and
@@ -293,6 +357,92 @@ def convert_to_phyml_source(xml_root):
 
     return phyml_root
 
+def convert_to_phyml_source_meta_tree(xml_root):
+    """ Converts old STK XML to a new STK source XML block
+    ready for insertion into a PHYML tree
+    """
+
+    # parse XML file and extract necessary info
+    find = etree.XPath("//Source")
+    Source = find(xml_root)[0]
+    input_author = Source.xpath('Author')
+    input_title = Source.xpath('Title')[0].text
+    input_year = Source.xpath('Year')[0].text
+    input_journal = Source.xpath('Journal')[0].text
+    input_volume = Source.xpath('Volume')[0].text
+    input_pages = Source.xpath('Pages')[0].text
+    input_booktitle = Source.xpath('Booktitle')[0].text
+    input_editor = Source.xpath('Editor')[0].text
+    input_publisher = Source.xpath('Publisher')[0].text
+
+    author_list = []
+    for l in input_author:
+        author_list.append(l.xpath('List')[0].text)
+
+    if (len(author_list) == 0):
+	    author_list.append(input_author)
+    print author_list
+    
+    phyml_root = etree.Element("source")
+    publication = etree.SubElement(phyml_root,"bibliographic_information")
+    # does it contain a booktitle?
+    contains_booktitle = False
+    if (contains_booktitle):
+        article = etree.SubElement(publication,"book")
+    else:
+        article = etree.SubElement(publication,"article")
+
+    authors = etree.SubElement(article,"authors")
+
+    # now parse authors into something sensible
+    # authors - parse into full author names, then use nameparse to extract first and last
+    for a in author_list:
+        # further munging of name
+        a = a.strip()
+        bits = a.split(',')
+        if (len(bits) > 1):
+            a = bits[1].strip()+" "+bits[0].strip()
+        o = np.HumanName(a)
+        ae = etree.SubElement(authors,'author')
+        surname = etree.SubElement(ae,'surname')
+        string = etree.SubElement(surname,'string_value')
+        string.attrib['lines'] = "1"
+        string.text = python_string.capwords(o.last)
+        if (o.last.capitalize() == ''):
+	        string.text = a
+        first = etree.SubElement(ae,'other_names')
+        string = etree.SubElement(first,'string_value')
+        string.attrib['lines'] = "1"
+        other = python_string.capwords(o.first)
+        string.text = other
+        # reset to empty if needed
+        if (o.first == None):
+            string.text = ''
+
+    # title and the publication data 
+    title = etree.SubElement(article,"title")
+    string = etree.SubElement(title,"string_value")
+    string.attrib['lines'] = "1"
+    string.text = input_title
+    volume = etree.SubElement(article,"volume")
+    string = etree.SubElement(volume,"string_value")
+    string.attrib['lines'] = "1"
+    string.text = input_volume
+    year = etree.SubElement(article,"year")
+    integer = etree.SubElement(year,"integer_value")
+    integer.attrib['rank'] = "0"
+    integer.text = input_year
+    journal = etree.SubElement(article,"journal")
+    string = etree.SubElement(journal,"string_value")
+    string.attrib['lines'] = "1"
+    string.text = input_journal
+    pages = etree.SubElement(article,"pages")
+    string = etree.SubElement(pages,"string_value")
+    string.attrib['lines'] = "1"
+    string.text = input_pages
+
+
+    return phyml_root
 
 def convert_to_phyml_sourcetree(input_xml, xml_file):
     """ Extract the source_tree data from the old-style XML
@@ -438,6 +588,187 @@ def convert_to_phyml_sourcetree(input_xml, xml_file):
     
     return source_tree
 
+def convert_to_phyml_sourcetree_meta_tree(input_xml, xml_file):
+    """ Extract the source_tree data from the old-style XML
+    and create an XML tree inthe new style. We leave it to the
+    main program to check that we append or add the source
+    """
+
+    import stk.p4 as p4
+    import tempfile 
+
+    # get tree filename from current_xml
+    find_treefiles = etree.XPath('//Filename')
+    # append mrp.nex on the of this to find the actual file we need
+    treefile = find_treefiles(input_xml)[0].text
+    # now stick on the root path of the XML to get the full path of the treefile
+    cur_dir = os.path.split(xml_file)[0]
+    try:
+        # cannot for the life of me figure out how to add char sets to the 
+        # matrix after reading it in. So let's ahack them onto the end of the file, 
+        # then read it in!
+        f = open(os.path.join(cur_dir,treefile+'mrp.nex'),'r')
+        ft = tempfile.NamedTemporaryFile()
+        name = ft.name
+        matrix = f.read()
+        # find number of characters and create the charset
+        
+        matrix += "\n"
+        matrix += "begin sets;\n"
+        
+        matrix += "end;\n"
+        ft.write('something on temporaryfile')
+        ft.seek(0) # return to beginning of file
+        # switch for the reverseMRP thing, faking the character set to be each, which gives
+        # us the MPTs from the analysis
+        p4.var.alignments = []
+        p4.var.doCheckForDuplicateSequences = False
+        p4.read(os.path.join(cur_dir,treefile+'mrp.nex'))
+        p4.var.doCheckForDuplicateSequences = True        
+        # get data out
+        a = p4.var.alignments[0]
+        a.setNexusSets()
+        a.nexusSets.charSets = range(1,a.nexusSets.nChar+1)
+        trees = p4.MRP.reverseMrp(a)
+    except TreeParseError as detail:
+        msg = "***Error: failed to parse a matrix in your data set.\n"
+        msg += "File is: "+treefile+"\n"+detail.msg
+        print msg
+        return
+    except IOError:
+        msg = "***Error: failed to find a matrix in your data set.\n"
+        msg += "File is: "+treefile+"\n"
+        print msg
+        return
+
+    print trees
+    
+    # all other data
+    find_mol = etree.XPath('//Characters/Molecular/Type')
+    find_morph = etree.XPath('//Characters/Morphological/Type')
+    find_behave = etree.XPath('//Characters/Behavioural/Type')
+    find_other = etree.XPath('//Characters/Other/Type')
+    taxa_list = etree.XPath('//Taxa')[0]
+    taxa_number = int(etree.XPath('//Taxa')[0].attrib['number'])
+    taxa_type = input_xml.xpath('/SourceTree/Taxa')[0].attrib['fossil']
+    if (taxa_type == "some"):
+        mixed = True
+        allextant = False
+        allfossil = False
+    elif (taxa_type == "all"):
+        mixed = False
+        allextant = False
+        allfossil = True
+    elif (taxa_type == "none"):
+        mixed = False
+        allextant = True
+        allfossil = False
+    else:
+        mixed = False
+        allextant = False
+        allfossil = True
+
+
+    # analysis   
+    input_comments = input_xml.xpath('/SourceTree/Notes')[0].text
+    input_analysis = input_xml.xpath('/SourceTree/Analysis/Type')[0].text
+    # Theres a translation to be done here
+    if (input_analysis == "MP"):
+        input_analysis = "Maximum Parsimony"
+    if (input_analysis == "ML"):
+        input_analysis = "Maximum Likelihood"
+
+
+    # construct new XML
+    source_tree = etree.Element("source_tree")
+    # tree data
+    tree_ele = etree.SubElement(source_tree,"tree")
+    tree_string = etree.SubElement(tree_ele,"tree_string")
+    string = etree.SubElement(tree_string,"string_value")
+    string.attrib["lines"] = "1"
+    string.text = matrix
+    # comment
+    if (not input_comments == None):
+        comment = etree.SubElement(tree_string,"comment")
+        comment.text = input_comments
+    # Figure and page number stuff
+    figure_legend = etree.SubElement(tree_ele,"figure_legend")
+    figure_legend.tail="\n      "
+    figure_legend_string = etree.SubElement(figure_legend,"string_value")
+    figure_legend_string.tail="\n      "
+    figure_legend_string.attrib['lines'] = "1"
+    figure_legend_string.text = "NA"
+    figure_number = etree.SubElement(tree_ele,"figure_number")
+    figure_number.tail="\n      "
+    figure_number_string = etree.SubElement(figure_number,"string_value")
+    figure_number_string.tail="\n      "
+    figure_number_string.attrib['lines'] = "1"
+    figure_number_string.text = "0"
+    page_number = etree.SubElement(tree_ele,"page_number")
+    page_number.tail="\n      "
+    page_number_string = etree.SubElement(page_number,"string_value")
+    page_number_string.tail="\n      "
+    page_number_string.attrib['lines'] = "1"
+    tree_inference = etree.SubElement(tree_ele,"tree_inference")
+    optimality_criterion = etree.SubElement(tree_inference,"optimality_criterion")
+    # analysis
+    optimality_criterion.attrib['name'] = input_analysis
+    # taxa data
+    taxa_data = etree.SubElement(source_tree,"taxa_data")
+    if (allfossil):
+        taxa_type = etree.SubElement(taxa_data,"all_fossil")
+    elif (allextant):
+        taxa_type = etree.SubElement(taxa_data,"all_extant")
+    else:
+        taxa_type = etree.SubElement(taxa_data,"mixed_fossil_and_extant")
+        # We *should* add a taxon here to make sure this is valid
+        # phyml according to the schema. However, in doin so we will fail the
+        # taxon check as we don't know which taxon (or taxa) is a fossil, as
+        # this in formation is not recorded in the old STK XML files.
+        # We therefore leave this commented out as a reminder to the 
+        # next soul to edit this
+        #taxon = etree.SubElement(taxa_type,"taxon")
+
+    character_data = etree.SubElement(source_tree,"character_data")
+    # loop over characters add correctly
+    chars = find_mol(input_xml)
+    for c in chars:
+        new_char = etree.SubElement(character_data,"character")
+        new_char.attrib['type'] = "molecular"
+        new_char.attrib['name'] = c.text
+    chars = find_morph(input_xml)
+    for c in chars:
+        new_char = etree.SubElement(character_data,"character")
+        new_char.attrib['type'] = "morphological"
+        new_char.attrib['name'] = c.text
+    chars = find_behave(input_xml)
+    for c in chars:
+        new_char = etree.SubElement(character_data,"character")
+        new_char.attrib['type'] = "behavioural"
+        new_char.attrib['name'] = c.text
+    chars = find_other(input_xml)
+    for c in chars:
+        new_char = etree.SubElement(character_data,"character")
+        new_char.attrib['type'] = "other"
+        new_char.attrib['name'] = c.text
+
+    # we now have to sort all the taxa out
+    for t in taxa_list:
+        recon_id = t[0].attrib['recon_no']
+        recon_name = t[0].attrib['recon_name']
+        t = t[0].text
+        taxon = etree.SubElement(taxa_type,"Taxa")
+        taxon.attrib['name'] = t
+        acc_no = etree.SubElement(taxon,"accession_number_or_specimen_identifier")
+        acc_no[0].text = recon_id
+        acc_name = etree.SubElement(taxon,"recon_name")
+        acc_name[0].text = recon_name
+
+    # can we grab data from the PBDB and put in at the same time? We have the freakin' accession number
+    # so we can fill in the rest of the data - wooo! Someone else do this...
+    
+    
+    return source_tree
 
 def create_xml_metadata(XML_string, this_source, filename):
     """ Converts a PHYML source block to the old style XML file"""
