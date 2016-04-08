@@ -27,7 +27,6 @@ import re
 import numpy 
 from lxml import etree
 import stk.nameparser.parser as np
-import re
 import supertree_toolkit
 from copy import deepcopy
 from supertree_toolkit import _parse_xml
@@ -201,7 +200,6 @@ def import_meta_tree(input_dir, verbose=False):
     # for each XML
     nXML = 0;
     for xml in locate('*.xml', input_dir):
-        print xml
         # parse XML
         if (verbose):
             print "Parsing: "+xml
@@ -242,7 +240,8 @@ def locate(pattern, root=os.curdir):
     import fnmatch
     for path, dirs, files in os.walk(os.path.abspath(root)):
         for filename in fnmatch.filter(files,pattern):
-            yield os.path.join(path, filename)
+            if not filename.startswith('.'):
+                yield os.path.join(path, filename)
 
 
 def convert_to_phyml_source(xml_root):
@@ -612,23 +611,27 @@ def convert_to_phyml_sourcetree_meta_tree(input_xml, xml_file):
         name = ft.name
         matrix = f.read()
         # find number of characters and create the charset
-        
+        nCharM = re.search('NCHAR=(\d+)',matrix)
+        nChar = int(nCharM.group(1))
+        # now make the charset block
         matrix += "\n"
         matrix += "begin sets;\n"
-        
+        for i in range(1,nChar+1):
+            matrix += "\t  charSet cs"+str(i)+" = "+str(i)+";\n"
         matrix += "end;\n"
-        ft.write('something on temporaryfile')
+        ft.write(matrix)
         ft.seek(0) # return to beginning of file
         # switch for the reverseMRP thing, faking the character set to be each, which gives
         # us the MPTs from the analysis
         p4.var.alignments = []
+        p4.var.nexusSets=[]
         p4.var.doCheckForDuplicateSequences = False
-        p4.read(os.path.join(cur_dir,treefile+'mrp.nex'))
+        p4.read(name)
         p4.var.doCheckForDuplicateSequences = True        
         # get data out
         a = p4.var.alignments[0]
         a.setNexusSets()
-        a.nexusSets.charSets = range(1,a.nexusSets.nChar+1)
+        ft.close()
         trees = p4.MRP.reverseMrp(a)
     except TreeParseError as detail:
         msg = "***Error: failed to parse a matrix in your data set.\n"
@@ -641,33 +644,14 @@ def convert_to_phyml_sourcetree_meta_tree(input_xml, xml_file):
         print msg
         return
 
-    print trees
-    
     # all other data
     find_mol = etree.XPath('//Characters/Molecular/Type')
     find_morph = etree.XPath('//Characters/Morphological/Type')
     find_behave = etree.XPath('//Characters/Behavioural/Type')
     find_other = etree.XPath('//Characters/Other/Type')
-    taxa_list = etree.XPath('//Taxa')[0]
-    taxa_number = int(etree.XPath('//Taxa')[0].attrib['number'])
-    taxa_type = input_xml.xpath('/SourceTree/Taxa')[0].attrib['fossil']
-    if (taxa_type == "some"):
-        mixed = True
-        allextant = False
-        allfossil = False
-    elif (taxa_type == "all"):
-        mixed = False
-        allextant = False
-        allfossil = True
-    elif (taxa_type == "none"):
-        mixed = False
-        allextant = True
-        allfossil = False
-    else:
-        mixed = False
-        allextant = False
-        allfossil = True
-
+    taxa_list = input_xml.xpath('/SourceTree/Taxa/List')
+    taxa_number = int(input_xml.xpath('/SourceTree/Taxa')[0].attrib['number'])
+    allfossil = True
 
     # analysis   
     input_comments = input_xml.xpath('/SourceTree/Notes')[0].text
@@ -753,16 +737,17 @@ def convert_to_phyml_sourcetree_meta_tree(input_xml, xml_file):
         new_char.attrib['name'] = c.text
 
     # we now have to sort all the taxa out
+
     for t in taxa_list:
-        recon_id = t[0].attrib['recon_no']
-        recon_name = t[0].attrib['recon_name']
-        t = t[0].text
+        recon_id = t.attrib['recon_no']
+        recon_name = t.attrib['recon_name']
+        t = t.text
         taxon = etree.SubElement(taxa_type,"Taxa")
         taxon.attrib['name'] = t
         acc_no = etree.SubElement(taxon,"accession_number_or_specimen_identifier")
-        acc_no[0].text = recon_id
+        acc_no.text = recon_id
         acc_name = etree.SubElement(taxon,"recon_name")
-        acc_name[0].text = recon_name
+        acc_name.text = recon_name
 
     # can we grab data from the PBDB and put in at the same time? We have the freakin' accession number
     # so we can fill in the rest of the data - wooo! Someone else do this...
